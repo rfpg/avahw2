@@ -32,6 +32,7 @@ function setup() {
 function draw() {
   background(255); 
   
+  // Update and draw shape once
   shape.update();
   shape.display();
   
@@ -50,9 +51,6 @@ function draw() {
     shape.y = mouseY;
   }
 
-  shape.update();
-  shape.display();
-  
   // Spawn balls at random intervals
   if (millis() - lastSpawnTime >= nextSpawnDelay) {
     spawnBall();
@@ -65,18 +63,20 @@ function draw() {
     b.update();  
     b.display();
   
-    // Collision detection
+    // Collision detection: use the spinner's current rotation and compare indices (integers)
     for (let j = 0; j < 3; j++) { // loop through three times 
-      let a = radians(j * 120); // p5.js uses radians
+      // include the current rotation of the spinner
+      let a = shape.angle + radians(j * 120); // p5.js uses radians
       let x2 = shape.x + cos(a) * shape.length;
       let y2 = shape.y + sin(a) * shape.length;
       let d = dist(b.x, b.y, x2, y2);
 
       if (d < ballSize/2 + 10) { // hit detection radius
-        if (b.rgb === shape.getBallColor(j)) { // if colors match
+        // compare by color index (integers) rather than Color objects
+        if (b.colorIndex === j) { // if colors match
           points++; // add point
           balls.splice(i, 1);
-          if (sound.isLoaded()) {
+          if (sound && sound.isLoaded()) {
             sound.play();
           }
           break; // Exit the loop after removing the ball
@@ -100,13 +100,10 @@ function mousePressed() { // when mouse is pressed
 function spawnBall() {
   let x = random(sideMargin, width - sideMargin);
   
-  // Pick random color: red, yellow, or blue
+  // Pick random color index: 0 = red, 1 = yellow, 2 = blue
   let r = int(random(3));
-  if (r === 0) rgb = color(255, 0, 0); // red
-  else if (r === 1) rgb = color(255, 255, 0); // yellow
-  else rgb = color(0, 0, 255); // blue
-  
-  balls.push(new Ball(x, rgb));
+  // Pass the color index to the Ball constructor
+  balls.push(new Ball(x, r));
 }
 
 // Random spawn interval
@@ -115,10 +112,21 @@ function setNextSpawnDelay() {
 }
 
 class Ball {
-  constructor(x, rgb) {
+  // now takes a colorIndex (0,1,2) instead of a Color object
+  constructor(x, colorIndex) {
     this.x = x;
     this.y = ballSize/2;
-    this.rgb = rgb;
+    this.colorIndex = colorIndex;
+    // set rgb for drawing using the spinner's color mapping
+    // shape should exist by the time spawnBall is called (after setup)
+    if (typeof shape !== 'undefined' && shape !== null) {
+      this.rgb = shape.getBallColor(colorIndex);
+    } else {
+      // fallback: create colors directly
+      if (colorIndex === 0) this.rgb = color(255,0,0);
+      else if (colorIndex === 1) this.rgb = color(255,255,0);
+      else this.rgb = color(0,0,255);
+    }
     this.speed = random(3, 10);
   }
   
